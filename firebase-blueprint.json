@@ -1,0 +1,1068 @@
+{
+  "entities": {
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Trusted administrator marker document granting moderation and verification privileges.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 150
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Non-PII application user profile linked to customer or business owner role.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "area": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "isBusinessOwner": {
+          "type": "boolean"
+        },
+        "businessId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "businessName": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "area", "isBusinessOwner", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII document storing a user's personal email, mobile number, FCM token, and notification/privacy preferences.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "fcmToken": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "notificationPreferences": {
+          "type": "object"
+        },
+        "privacySettings": {
+          "type": "object"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "updatedAt"]
+    },
+    "SavedBusiness": {
+      "title": "SavedBusiness",
+      "description": "User-bookmarked business listing reference.",
+      "type": "object",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "savedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["businessId", "userId", "savedAt"]
+    },
+    "RecentlyViewedBusiness": {
+      "title": "RecentlyViewedBusiness",
+      "description": "User-owned record of a recently viewed business listing.",
+      "type": "object",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "viewedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["businessId", "userId", "viewedAt"]
+    },
+    "BusinessListing": {
+      "title": "BusinessListing",
+      "description": "Visakhapatnam local shop, service provider, artisan workshop, or manufacturing factory listing.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "teluguName": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "tagline": {
+          "type": "string",
+          "maxLength": 220
+        },
+        "scale": {
+          "type": "string",
+          "enum": [
+            "Small Business",
+            "Medium Enterprise",
+            "Large Manufacturing Factory",
+            "Artisan / Cottage Industry"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "categoryLabel": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "area": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "landmark": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "alternatePhone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "whatsapp": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "website": {
+          "type": "string",
+          "maxLength": 250
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["approved", "pending", "rejected", "suspended"]
+        },
+        "rejectionReason": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "freeListingEligible": {
+          "type": "boolean"
+        },
+        "freeListingNumber": {
+          "type": "integer"
+        },
+        "establishedYear": {
+          "type": "integer"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "reviewCount": {
+          "type": "integer"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "verificationBadge": {
+          "type": "string",
+          "enum": [
+            "Govt / MSME Verified",
+            "Industrial License",
+            "Local Merchant Verified"
+          ]
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 800
+        },
+        "gallery": {
+          "type": "array"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 3000
+        },
+        "keyOfferings": {
+          "type": "array"
+        },
+        "manufacturingCapacity": {
+          "type": "string",
+          "maxLength": 250
+        },
+        "businessHours": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "appointmentSlots": {
+          "type": "array"
+        },
+        "isRetail": {
+          "type": "boolean"
+        },
+        "isWholesale": {
+          "type": "boolean"
+        },
+        "isManufacturer": {
+          "type": "boolean"
+        },
+        "certifications": {
+          "type": "array"
+        },
+        "contactPerson": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "contactDesignation": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "offers": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "name",
+        "tagline",
+        "scale",
+        "category",
+        "categoryLabel",
+        "area",
+        "address",
+        "phone",
+        "whatsapp",
+        "email",
+        "status",
+        "establishedYear",
+        "rating",
+        "reviewCount",
+        "verified",
+        "verificationBadge",
+        "imageUrl",
+        "gallery",
+        "description",
+        "keyOfferings",
+        "businessHours",
+        "isRetail",
+        "isWholesale",
+        "isManufacturer",
+        "contactPerson",
+        "contactDesignation",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BusinessProduct": {
+      "title": "BusinessProduct",
+      "description": "Product or service item listed under a Visakhapatnam business with real price and stock status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessStatus": {
+          "type": "string",
+          "enum": ["approved", "pending", "rejected", "suspended"]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "price": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "availability": {
+          "type": "string",
+          "enum": ["In Stock", "Out of Stock", "Made to Order", "By Appointment"]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 800
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "ownerId",
+        "businessStatus",
+        "name",
+        "category",
+        "price",
+        "availability",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BusinessReview": {
+      "title": "BusinessReview",
+      "description": "Customer rating and review for a Visakhapatnam business listing.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "rating": {
+          "type": "integer"
+        },
+        "comment": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["approved", "pending", "flagged"]
+        },
+        "moderationNotes": {
+          "type": "string",
+          "maxLength": 250
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "userId",
+        "userName",
+        "rating",
+        "comment",
+        "date",
+        "status",
+        "createdAt"
+      ]
+    },
+    "BusinessInquiry": {
+      "title": "BusinessInquiry",
+      "description": "Customer wholesale, retail, or supply quote inquiry directed to a specific business owner.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessOwnerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessName": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "senderId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "userPhone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "inquiryType": {
+          "type": "string",
+          "enum": [
+            "Wholesale / Bulk Order",
+            "Retail Purchase",
+            "Manufacturing & Supply",
+            "General Query"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Pending", "Contacted", "Closed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "businessOwnerId",
+        "businessName",
+        "senderId",
+        "userName",
+        "userPhone",
+        "inquiryType",
+        "message",
+        "date",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AppointmentBooking": {
+      "title": "AppointmentBooking",
+      "description": "Customer service/visit appointment booked with an approved Visakhapatnam business.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessOwnerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessName": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "customerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "customerName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "customerPhone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "slotDate": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "slotTime": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "serviceOrProduct": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Requested", "Confirmed", "Cancelled", "Completed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "businessOwnerId",
+        "businessName",
+        "customerId",
+        "customerName",
+        "customerPhone",
+        "slotDate",
+        "slotTime",
+        "serviceOrProduct",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookedSlot": {
+      "title": "BookedSlot",
+      "description": "PII-free appointment slot lock preventing concurrent double-booking for a business time slot.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "businessOwnerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "customerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "appointmentId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "slotDate": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "slotTime": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "status": {
+          "type": "string",
+          "enum": ["booked", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "businessOwnerId",
+        "customerId",
+        "appointmentId",
+        "slotDate",
+        "slotTime",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PlatformReport": {
+      "title": "PlatformReport",
+      "description": "User-submitted report for inaccurate business info, suspicious listings, or service complaints.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "type": {
+          "type": "string",
+          "enum": ["business_report", "incorrect_info", "complaint"]
+        },
+        "targetBusinessId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "targetBusinessName": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "reporterId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "reporterName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 1500
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Open", "Reviewed", "Resolved"]
+        },
+        "adminNotes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "reporterId",
+        "reporterName",
+        "reason",
+        "details",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CommunityEvent": {
+      "title": "CommunityEvent",
+      "description": "Visakhapatnam community event, exhibition, cultural program, or public announcement.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Event", "Exhibition", "Cultural Program", "Public Announcement"]
+        },
+        "area": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "venue": {
+          "type": "string",
+          "maxLength": 250
+        },
+        "eventDate": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "eventTime": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "organizerName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "organizerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1500
+        },
+        "status": {
+          "type": "string",
+          "enum": ["approved", "pending", "rejected"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "category",
+        "area",
+        "venue",
+        "eventDate",
+        "organizerName",
+        "organizerId",
+        "description",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ListingQuotaConfig": {
+      "title": "ListingQuotaConfig",
+      "description": "Singleton platform quota configuration tracking the first 100 free business listings.",
+      "type": "object",
+      "properties": {
+        "approvedFreeCount": {
+          "type": "integer"
+        },
+        "maxFreeListings": {
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["approvedFreeCount", "maxFreeListings", "updatedAt"]
+    },
+    "FreeListingClaim": {
+      "title": "FreeListingClaim",
+      "description": "Immutable claim record ensuring each approved business counts once toward the first 100 free listings.",
+      "type": "object",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "listingNumber": {
+          "type": "integer"
+        },
+        "claimedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["businessId", "ownerId", "listingNumber", "claimedAt"]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "User-scoped notification document for offers, updates, bookings, and inquiry activity.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "type": {
+          "type": "string",
+          "enum": ["offer", "update", "inquiry", "review", "booking"]
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "businessId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "title", "message", "date", "type", "read", "createdAt"]
+    },
+    "PublicNotification": {
+      "title": "PublicNotification",
+      "description": "Admin-published citywide announcement visible to visitors and customers.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "type": {
+          "type": "string",
+          "enum": ["offer", "update", "inquiry", "review", "booking"]
+        },
+        "audience": {
+          "type": "string",
+          "enum": ["public"]
+        },
+        "businessId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "message", "date", "type", "audience", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Admin authorization registry."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Non-PII user profile documents."
+    },
+    "/users/{userId}/private/info": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated PII and preferences storage for authenticated users."
+    },
+    "/users/{userId}/saved/{businessId}": {
+      "schema": { "$ref": "#/entities/SavedBusiness" },
+      "description": "Subcollection of customer saved businesses."
+    },
+    "/users/{userId}/recentlyViewed/{businessId}": {
+      "schema": { "$ref": "#/entities/RecentlyViewedBusiness" },
+      "description": "Subcollection tracking a user's recently viewed business profiles."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/UserNotification" },
+      "description": "Per-user notifications and read status."
+    },
+    "/businesses/{businessId}": {
+      "schema": { "$ref": "#/entities/BusinessListing" },
+      "description": "Publicly browsable Visakhapatnam approved business directory listings."
+    },
+    "/businesses/{businessId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/BusinessProduct" },
+      "description": "Products and services catalog scoped to a parent business."
+    },
+    "/businesses/{businessId}/bookedSlots/{slotKey}": {
+      "schema": { "$ref": "#/entities/BookedSlot" },
+      "description": "PII-free slot reservation locks preventing double-booking."
+    },
+    "/businesses/{businessId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/BusinessReview" },
+      "description": "Customer reviews and ratings scoped to a parent business."
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/BusinessInquiry" },
+      "description": "Direct inquiries scoped strictly to sender and target business owner."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/AppointmentBooking" },
+      "description": "Customer appointment bookings scoped to customer and target business owner."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/PlatformReport" },
+      "description": "Moderated user reports for business inaccuracies or complaints."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/CommunityEvent" },
+      "description": "Visakhapatnam community events, exhibitions, cultural programs, and public announcements."
+    },
+    "/platformConfig/{configId}": {
+      "schema": { "$ref": "#/entities/ListingQuotaConfig" },
+      "description": "Platform configuration and first-100 free listing quota counter."
+    },
+    "/freeListingClaims/{businessId}": {
+      "schema": { "$ref": "#/entities/FreeListingClaim" },
+      "description": "Immutable claim ledger preventing duplicate free listing counting."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/PublicNotification" },
+      "description": "Admin-managed public Visakhapatnam offers and platform updates."
+    }
+  }
+}

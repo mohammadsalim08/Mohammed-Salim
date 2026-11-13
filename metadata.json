@@ -1,0 +1,6 @@
+{
+  "name": "VIZAGCONNECT",
+  "description": "Discover Local. Support Local. Visakhapatnam local commerce and industrial directory connecting Vizag citizens and contractors directly to local shops and manufacturing factories across all areas with multilingual VIZAG AI in Telugu, Hindi, and English.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

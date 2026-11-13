@@ -1,0 +1,830 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Boot-time Firestore connectivity check document
+    match /test/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // =========================================================================
+    // Global Security Primitives
+    // =========================================================================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Verified authentication supporting Google Sign-In (verified email) AND Firebase Phone OTP (+91 SMS)
+    function isVerifiedUser() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        (request.auth.token.firebase.sign_in_provider == 'phone' && request.auth.token.phone_number != null)
+      );
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'mohamnedsalim21493@gmail.com' && request.auth.token.email_verified == true)
+      );
+    }
+
+    // =========================================================================
+    // Validation Blueprints (Anti-Update-Gap)
+    // =========================================================================
+    function isValidAdmin(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.uid == uid &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 150 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['id', 'name', 'area', 'isBusinessOwner', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'area', 'isBusinessOwner', 'businessId', 'businessName', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+        data.isBusinessOwner is bool &&
+        (!data.keys().hasAny(['businessId']) || isValidId(data.businessId)) &&
+        (!data.keys().hasAny(['businessName']) || (data.businessName is string && data.businessName.size() <= 150)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'phone', 'fcmToken', 'notificationPreferences', 'privacySettings', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == userId &&
+        (!data.keys().hasAny(['email']) || (data.email is string && data.email.size() <= 150)) &&
+        (!data.keys().hasAny(['phone']) || (data.phone is string && data.phone.size() <= 30)) &&
+        (!data.keys().hasAny(['fcmToken']) || (data.fcmToken is string && data.fcmToken.size() <= 500)) &&
+        (!data.keys().hasAny(['notificationPreferences']) || data.notificationPreferences is map) &&
+        (!data.keys().hasAny(['privacySettings']) || data.privacySettings is map) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSavedBusiness(data, userId, businessId) {
+      return data.keys().hasAll(['businessId', 'userId', 'savedAt']) &&
+        data.keys().hasOnly(['businessId', 'userId', 'savedAt']) &&
+        isValidId(data.businessId) &&
+        data.businessId == businessId &&
+        isValidId(data.userId) &&
+        data.userId == userId &&
+        data.savedAt is timestamp;
+    }
+
+    function isValidRecentlyViewed(data, userId, businessId) {
+      return data.keys().hasAll(['businessId', 'userId', 'viewedAt']) &&
+        data.keys().hasOnly(['businessId', 'userId', 'viewedAt']) &&
+        isValidId(data.businessId) &&
+        data.businessId == businessId &&
+        isValidId(data.userId) &&
+        data.userId == userId &&
+        data.viewedAt is timestamp;
+    }
+
+    function isValidUserNotification(data, userId, notifId) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'message', 'date', 'type', 'read', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'title', 'message', 'date', 'type', 'read', 'businessId', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.id == notifId &&
+        isValidId(data.userId) &&
+        data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 600 &&
+        data.date is string && data.date.size() <= 40 &&
+        data.type in ['offer', 'update', 'inquiry', 'review', 'booking'] &&
+        data.read is bool &&
+        (!data.keys().hasAny(['businessId']) || isValidId(data.businessId)) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidBusiness(data, businessId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'name', 'tagline', 'scale', 'category', 'categoryLabel',
+          'area', 'address', 'phone', 'whatsapp', 'email', 'status', 'establishedYear',
+          'rating', 'reviewCount', 'verified', 'verificationBadge', 'imageUrl', 'gallery',
+          'description', 'keyOfferings', 'businessHours', 'isRetail', 'isWholesale',
+          'isManufacturer', 'contactPerson', 'contactDesignation', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'teluguName', 'tagline', 'scale', 'category', 'categoryLabel',
+          'area', 'address', 'landmark', 'phone', 'alternatePhone', 'whatsapp', 'email', 'website',
+          'latitude', 'longitude', 'status', 'rejectionReason', 'suspensionReason',
+          'freeListingEligible', 'freeListingNumber', 'establishedYear', 'rating', 'reviewCount',
+          'verified', 'verificationBadge', 'imageUrl', 'gallery', 'description', 'keyOfferings',
+          'manufacturingCapacity', 'businessHours', 'appointmentSlots', 'isRetail', 'isWholesale',
+          'isManufacturer', 'certifications', 'contactPerson', 'contactDesignation', 'offers',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.id == businessId &&
+        isValidId(data.ownerId) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        (!data.keys().hasAny(['teluguName']) || (data.teluguName is string && data.teluguName.size() <= 160)) &&
+        data.tagline is string && data.tagline.size() >= 1 && data.tagline.size() <= 220 &&
+        data.scale in ['Small Business', 'Medium Enterprise', 'Large Manufacturing Factory', 'Artisan / Cottage Industry'] &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 64 &&
+        data.categoryLabel is string && data.categoryLabel.size() >= 1 && data.categoryLabel.size() <= 100 &&
+        data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+        data.address is string && data.address.size() >= 1 && data.address.size() <= 400 &&
+        (!data.keys().hasAny(['landmark']) || (data.landmark is string && data.landmark.size() <= 200)) &&
+        data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 30 &&
+        (!data.keys().hasAny(['alternatePhone']) || (data.alternatePhone is string && data.alternatePhone.size() <= 30)) &&
+        data.whatsapp is string && data.whatsapp.size() <= 30 &&
+        data.email is string && data.email.size() <= 150 &&
+        (!data.keys().hasAny(['website']) || (data.website is string && data.website.size() <= 250)) &&
+        (!data.keys().hasAny(['latitude']) || (data.latitude is number && data.latitude >= -90 && data.latitude <= 90)) &&
+        (!data.keys().hasAny(['longitude']) || (data.longitude is number && data.longitude >= -180 && data.longitude <= 180)) &&
+        data.status in ['approved', 'pending', 'rejected', 'suspended'] &&
+        (!data.keys().hasAny(['rejectionReason']) || (data.rejectionReason is string && data.rejectionReason.size() <= 400)) &&
+        (!data.keys().hasAny(['suspensionReason']) || (data.suspensionReason is string && data.suspensionReason.size() <= 400)) &&
+        (!data.keys().hasAny(['freeListingEligible']) || data.freeListingEligible is bool) &&
+        (!data.keys().hasAny(['freeListingNumber']) || (data.freeListingNumber is int && data.freeListingNumber >= 1 && data.freeListingNumber <= 100)) &&
+        data.establishedYear is int && data.establishedYear >= 1900 && data.establishedYear <= 2030 &&
+        data.rating is number && data.rating >= 0 && data.rating <= 5 &&
+        data.reviewCount is int && data.reviewCount >= 0 &&
+        data.verified is bool &&
+        data.verificationBadge in ['Govt / MSME Verified', 'Industrial License', 'Local Merchant Verified'] &&
+        data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 800 &&
+        data.gallery is list && data.gallery.size() >= 1 && data.gallery.size() <= 10 && data.gallery[0] is string && data.gallery[0].size() <= 800 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 3000 &&
+        data.keyOfferings is list && data.keyOfferings.size() >= 1 && data.keyOfferings.size() <= 20 && data.keyOfferings[0] is string && data.keyOfferings[0].size() <= 120 &&
+        (!data.keys().hasAny(['manufacturingCapacity']) || (data.manufacturingCapacity is string && data.manufacturingCapacity.size() <= 250)) &&
+        data.businessHours is string && data.businessHours.size() >= 1 && data.businessHours.size() <= 200 &&
+        (!data.keys().hasAny(['appointmentSlots']) || (data.appointmentSlots is list && data.appointmentSlots.size() <= 20 && (data.appointmentSlots.size() == 0 || data.appointmentSlots[0] is string))) &&
+        data.isRetail is bool && data.isWholesale is bool && data.isManufacturer is bool &&
+        (!data.keys().hasAny(['certifications']) || (data.certifications is list && data.certifications.size() <= 10 && (data.certifications.size() == 0 || data.certifications[0] is string))) &&
+        (!data.keys().hasAny(['offers']) || (data.offers is list && data.offers.size() <= 10)) &&
+        data.contactPerson is string && data.contactPerson.size() >= 1 && data.contactPerson.size() <= 100 &&
+        data.contactDesignation is string && data.contactDesignation.size() >= 1 && data.contactDesignation.size() <= 100 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBusinessProduct(data, businessId, productId) {
+      return data.keys().hasAll(['id', 'businessId', 'ownerId', 'businessStatus', 'name', 'category', 'price', 'availability', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'businessId', 'ownerId', 'businessStatus', 'name', 'category', 'price', 'unit', 'availability', 'description', 'imageUrl', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == productId &&
+        isValidId(data.businessId) &&
+        data.businessId == businessId &&
+        isValidId(data.ownerId) &&
+        data.businessStatus in ['approved', 'pending', 'rejected', 'suspended'] &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 80 &&
+        data.price is number && data.price >= 0 && data.price <= 100000000 &&
+        (!data.keys().hasAny(['unit']) || (data.unit is string && data.unit.size() <= 50)) &&
+        data.availability in ['In Stock', 'Out of Stock', 'Made to Order', 'By Appointment'] &&
+        (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 600)) &&
+        (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 800)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidReview(data, businessId, reviewId) {
+      return data.keys().hasAll(['id', 'businessId', 'userId', 'userName', 'rating', 'comment', 'date', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'businessId', 'userId', 'userName', 'rating', 'comment', 'date', 'status', 'moderationNotes', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.id == reviewId &&
+        isValidId(data.businessId) &&
+        data.businessId == businessId &&
+        isValidId(data.userId) &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 100 &&
+        data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 1500 &&
+        data.date is string && data.date.size() <= 40 &&
+        data.status in ['approved', 'pending', 'flagged'] &&
+        (!data.keys().hasAny(['moderationNotes']) || (data.moderationNotes is string && data.moderationNotes.size() <= 250)) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidInquiry(data, inquiryId) {
+      return data.keys().hasAll(['id', 'businessId', 'businessOwnerId', 'businessName', 'senderId', 'userName', 'userPhone', 'inquiryType', 'message', 'date', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'businessId', 'businessOwnerId', 'businessName', 'senderId', 'userName', 'userPhone', 'userEmail', 'inquiryType', 'message', 'date', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == inquiryId &&
+        isValidId(data.businessId) &&
+        isValidId(data.businessOwnerId) &&
+        isValidId(data.senderId) &&
+        data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 160 &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 100 &&
+        data.userPhone is string && data.userPhone.size() >= 6 && data.userPhone.size() <= 30 &&
+        (!data.keys().hasAny(['userEmail']) || (data.userEmail is string && data.userEmail.size() <= 150)) &&
+        data.inquiryType in ['Wholesale / Bulk Order', 'Retail Purchase', 'Manufacturing & Supply', 'General Query'] &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 2000 &&
+        data.date is string && data.date.size() <= 40 &&
+        data.status in ['Pending', 'Contacted', 'Closed'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAppointment(data, appointmentId) {
+      return data.keys().hasAll(['id', 'businessId', 'businessOwnerId', 'businessName', 'customerId', 'customerName', 'customerPhone', 'slotDate', 'slotTime', 'serviceOrProduct', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'businessId', 'businessOwnerId', 'businessName', 'customerId', 'customerName', 'customerPhone', 'slotDate', 'slotTime', 'serviceOrProduct', 'notes', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == appointmentId &&
+        isValidId(data.businessId) &&
+        isValidId(data.businessOwnerId) &&
+        isValidId(data.customerId) &&
+        data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 160 &&
+        data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+        data.customerPhone is string && data.customerPhone.size() >= 6 && data.customerPhone.size() <= 30 &&
+        data.slotDate is string && data.slotDate.size() >= 8 && data.slotDate.size() <= 20 &&
+        data.slotTime is string && data.slotTime.size() >= 1 && data.slotTime.size() <= 60 &&
+        data.serviceOrProduct is string && data.serviceOrProduct.size() >= 1 && data.serviceOrProduct.size() <= 160 &&
+        (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 500)) &&
+        data.status in ['Requested', 'Confirmed', 'Cancelled', 'Completed'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBookedSlot(data, businessId, slotKey) {
+      return data.keys().hasAll(['id', 'businessId', 'businessOwnerId', 'customerId', 'appointmentId', 'slotDate', 'slotTime', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'businessId', 'businessOwnerId', 'customerId', 'appointmentId', 'slotDate', 'slotTime', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == slotKey &&
+        isValidId(data.businessId) &&
+        data.businessId == businessId &&
+        isValidId(data.businessOwnerId) &&
+        isValidId(data.customerId) &&
+        isValidId(data.appointmentId) &&
+        data.slotDate is string && data.slotDate.size() >= 8 && data.slotDate.size() <= 20 &&
+        data.slotTime is string && data.slotTime.size() >= 1 && data.slotTime.size() <= 60 &&
+        data.status in ['booked', 'cancelled'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidReport(data, reportId) {
+      return data.keys().hasAll(['id', 'type', 'reporterId', 'reporterName', 'reason', 'details', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'type', 'targetBusinessId', 'targetBusinessName', 'reporterId', 'reporterName', 'reason', 'details', 'status', 'adminNotes', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == reportId &&
+        data.type in ['business_report', 'incorrect_info', 'complaint'] &&
+        (!data.keys().hasAny(['targetBusinessId']) || isValidId(data.targetBusinessId)) &&
+        (!data.keys().hasAny(['targetBusinessName']) || (data.targetBusinessName is string && data.targetBusinessName.size() <= 160)) &&
+        isValidId(data.reporterId) &&
+        data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 100 &&
+        data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 160 &&
+        data.details is string && data.details.size() >= 1 && data.details.size() <= 1500 &&
+        data.status in ['Open', 'Reviewed', 'Resolved'] &&
+        (!data.keys().hasAny(['adminNotes']) || (data.adminNotes is string && data.adminNotes.size() <= 500)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidEvent(data, eventId) {
+      return data.keys().hasAll(['id', 'title', 'category', 'area', 'venue', 'eventDate', 'organizerName', 'organizerId', 'description', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'title', 'category', 'area', 'venue', 'eventDate', 'eventTime', 'organizerName', 'organizerId', 'description', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == eventId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        data.category in ['Event', 'Exhibition', 'Cultural Program', 'Public Announcement'] &&
+        data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+        data.venue is string && data.venue.size() >= 1 && data.venue.size() <= 250 &&
+        data.eventDate is string && data.eventDate.size() >= 1 && data.eventDate.size() <= 40 &&
+        (!data.keys().hasAny(['eventTime']) || (data.eventTime is string && data.eventTime.size() <= 60)) &&
+        data.organizerName is string && data.organizerName.size() >= 1 && data.organizerName.size() <= 100 &&
+        isValidId(data.organizerId) &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 1500 &&
+        data.status in ['approved', 'pending', 'rejected'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidListingQuota(data) {
+      return data.keys().hasAll(['approvedFreeCount', 'maxFreeListings', 'updatedAt']) &&
+        data.keys().hasOnly(['approvedFreeCount', 'maxFreeListings', 'updatedAt']) &&
+        data.approvedFreeCount is int && data.approvedFreeCount >= 0 && data.approvedFreeCount <= 100 &&
+        data.maxFreeListings is int && data.maxFreeListings == 100 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidFreeListingClaim(data, businessId) {
+      return data.keys().hasAll(['businessId', 'ownerId', 'listingNumber', 'claimedAt']) &&
+        data.keys().hasOnly(['businessId', 'ownerId', 'listingNumber', 'claimedAt']) &&
+        isValidId(data.businessId) &&
+        data.businessId == businessId &&
+        isValidId(data.ownerId) &&
+        data.listingNumber is int && data.listingNumber >= 1 && data.listingNumber <= 100 &&
+        data.claimedAt is timestamp;
+    }
+
+    function isValidPublicNotification(data, notifId) {
+      return data.keys().hasAll(['id', 'title', 'message', 'date', 'type', 'audience', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'title', 'message', 'date', 'type', 'audience', 'businessId', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.id == notifId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 600 &&
+        data.date is string && data.date.size() <= 40 &&
+        data.type in ['offer', 'update', 'inquiry', 'review', 'booking'] &&
+        data.audience == 'public' &&
+        (!data.keys().hasAny(['businessId']) || isValidId(data.businessId)) &&
+        data.createdAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection Match Blocks
+    // =========================================================================
+
+    match /admins/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(uid) && isValidAdmin(incoming(), uid);
+      allow delete: if isAdmin() && isValidId(uid);
+    }
+
+    match /platformConfig/{configId} {
+      allow get: if configId == 'listingQuota' || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() &&
+        configId == 'listingQuota' &&
+        isValidListingQuota(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /freeListingClaims/{businessId} {
+      allow get: if isSignedIn() && isValidId(businessId);
+      allow list: if isAdmin();
+      allow create: if isAdmin() &&
+        isValidId(businessId) &&
+        isValidFreeListingClaim(incoming(), businessId) &&
+        incoming().claimedAt == request.time &&
+        exists(/databases/$(database)/documents/businesses/$(businessId));
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'area', 'isBusinessOwner', 'businessId', 'businessName', 'updatedAt']))
+        );
+      allow delete: if (isOwner(userId) || isAdmin()) && isValidId(userId);
+
+      // Split Collection PII & Preferences Isolation
+      match /private/info {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if false;
+        allow create, update: if isVerifiedUser() &&
+          isValidId(userId) &&
+          (isOwner(userId) || isAdmin()) &&
+          isValidUserPrivateInfo(incoming(), userId) &&
+          incoming().updatedAt == request.time;
+        allow delete: if (isOwner(userId) || isAdmin()) && isValidId(userId);
+      }
+
+      // Saved Businesses Subcollection
+      match /saved/{businessId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isVerifiedUser() &&
+          isValidId(userId) &&
+          isValidId(businessId) &&
+          isOwner(userId) &&
+          isValidSavedBusiness(incoming(), userId, businessId) &&
+          incoming().savedAt == request.time &&
+          exists(/databases/$(database)/documents/businesses/$(businessId));
+        allow delete: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidId(businessId);
+      }
+
+      // Recently Viewed Subcollection
+      match /recentlyViewed/{businessId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create, update: if isVerifiedUser() &&
+          isValidId(userId) &&
+          isValidId(businessId) &&
+          isOwner(userId) &&
+          isValidRecentlyViewed(incoming(), userId, businessId) &&
+          incoming().viewedAt == request.time &&
+          exists(/databases/$(database)/documents/businesses/$(businessId));
+        allow delete: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidId(businessId);
+      }
+
+      // Per-User Notifications Subcollection
+      match /notifications/{notificationId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isVerifiedUser() &&
+          isValidId(userId) &&
+          isValidId(notificationId) &&
+          isValidUserNotification(incoming(), userId, notificationId) &&
+          incoming().createdAt == request.time &&
+          (
+            isAdmin() ||
+            isOwner(userId) ||
+            (
+              incoming().type in ['inquiry', 'booking'] &&
+              incoming().keys().hasAny(['businessId']) &&
+              exists(/databases/$(database)/documents/businesses/$(incoming().businessId)) &&
+              (
+                get(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.ownerId == userId ||
+                get(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.ownerId == request.auth.uid
+              )
+            )
+          );
+        allow update: if isVerifiedUser() &&
+          isValidId(userId) &&
+          isValidId(notificationId) &&
+          isValidUserNotification(incoming(), userId, notificationId) &&
+          incoming().createdAt == existing().createdAt &&
+          (
+            isAdmin() ||
+            (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']))
+          );
+        allow delete: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidId(notificationId);
+      }
+    }
+
+    match /businesses/{businessId} {
+      // Public can browse & read ONLY approved businesses; owners and admins can read pending/rejected/suspended
+      allow get: if resource.data.status == 'approved' ||
+        (isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+      allow list: if resource.data.status == 'approved' ||
+        (isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+
+      allow create: if isVerifiedUser() &&
+        isValidId(businessId) &&
+        isValidBusiness(incoming(), businessId) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            incoming().verified == false &&
+            incoming().status == 'pending' &&
+            (!incoming().keys().hasAny(['freeListingEligible']) || incoming().freeListingEligible == false) &&
+            !incoming().keys().hasAny(['freeListingNumber', 'rejectionReason', 'suspensionReason'])
+          )
+        );
+
+      allow update: if isVerifiedUser() &&
+        isValidId(businessId) &&
+        isValidBusiness(incoming(), businessId) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid &&
+            existing().status in ['pending', 'approved'] &&
+            incoming().verified == existing().verified &&
+            incoming().status == existing().status &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'teluguName', 'tagline', 'scale', 'category', 'categoryLabel',
+              'area', 'address', 'landmark', 'phone', 'alternatePhone', 'whatsapp',
+              'email', 'website', 'latitude', 'longitude', 'establishedYear',
+              'verificationBadge', 'imageUrl', 'gallery', 'description', 'keyOfferings',
+              'manufacturingCapacity', 'businessHours', 'appointmentSlots', 'isRetail', 'isWholesale',
+              'isManufacturer', 'certifications', 'contactPerson', 'contactDesignation',
+              'offers', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(businessId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+
+      // Products & Services Subcollection
+      match /products/{productId} {
+        allow get: if resource.data.businessStatus == 'approved' ||
+          (isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+        allow list: if resource.data.businessStatus == 'approved' ||
+          (isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+
+        allow create: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(productId) &&
+          isValidBusinessProduct(incoming(), businessId, productId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/businesses/$(businessId)) &&
+          (
+            isAdmin() ||
+            (
+              get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid &&
+              incoming().ownerId == request.auth.uid &&
+              incoming().businessStatus == get(/databases/$(database)/documents/businesses/$(businessId)).data.status
+            )
+          );
+
+        allow update: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(productId) &&
+          isValidBusinessProduct(incoming(), businessId, productId) &&
+          incoming().id == existing().id &&
+          incoming().businessId == existing().businessId &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            isAdmin() ||
+            (
+              existing().ownerId == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'name', 'category', 'price', 'unit', 'availability', 'description', 'imageUrl', 'updatedAt'
+              ])
+            )
+          );
+
+        allow delete: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(productId) &&
+          (existing().ownerId == request.auth.uid || isAdmin());
+      }
+
+      // PII-free Slot Reservation Lock Subcollection
+      match /bookedSlots/{slotKey} {
+        allow get: if isValidId(businessId) && isValidId(slotKey);
+        allow list: if resource.data.status in ['booked', 'cancelled'];
+
+        allow create: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(slotKey) &&
+          isValidBookedSlot(incoming(), businessId, slotKey) &&
+          incoming().customerId == request.auth.uid &&
+          incoming().status == 'booked' &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/businesses/$(businessId)) &&
+          get(/databases/$(database)/documents/businesses/$(businessId)).data.status == 'approved' &&
+          get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == incoming().businessOwnerId;
+
+        allow update: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(slotKey) &&
+          isValidBookedSlot(incoming(), businessId, slotKey) &&
+          incoming().id == existing().id &&
+          incoming().businessId == existing().businessId &&
+          incoming().businessOwnerId == existing().businessOwnerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            isAdmin() ||
+            (
+              existing().status == 'cancelled' &&
+              incoming().status == 'booked' &&
+              incoming().customerId == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['customerId', 'appointmentId', 'status', 'updatedAt'])
+            ) ||
+            (
+              (existing().customerId == request.auth.uid || existing().businessOwnerId == request.auth.uid) &&
+              incoming().status == 'cancelled' &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+            )
+          );
+
+        allow delete: if isAdmin() && isValidId(businessId) && isValidId(slotKey);
+      }
+
+      // Reviews Subcollection (Master Gate checks parent business exists)
+      match /reviews/{reviewId} {
+        allow get: if resource.data.status == 'approved' ||
+          (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
+        allow list: if resource.data.status == 'approved' ||
+          (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
+
+        allow create: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(reviewId) &&
+          isValidReview(incoming(), businessId, reviewId) &&
+          incoming().userId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          (isAdmin() || incoming().status in ['approved', 'flagged']) &&
+          exists(/databases/$(database)/documents/businesses/$(businessId));
+
+        allow update: if isAdmin() &&
+          isValidId(businessId) &&
+          isValidId(reviewId) &&
+          isValidReview(incoming(), businessId, reviewId) &&
+          incoming().id == existing().id &&
+          incoming().businessId == existing().businessId &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt;
+
+        allow delete: if isVerifiedUser() &&
+          isValidId(businessId) &&
+          isValidId(reviewId) &&
+          (existing().userId == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /inquiries/{inquiryId} {
+      allow get: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.businessOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.businessOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(inquiryId) &&
+        isValidInquiry(incoming(), inquiryId) &&
+        incoming().senderId == request.auth.uid &&
+        incoming().status == 'Pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/businesses/$(incoming().businessId)) &&
+        get(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.ownerId == incoming().businessOwnerId;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(inquiryId) &&
+        isValidInquiry(incoming(), inquiryId) &&
+        incoming().id == existing().id &&
+        incoming().businessId == existing().businessId &&
+        incoming().businessOwnerId == existing().businessOwnerId &&
+        incoming().senderId == existing().senderId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().businessOwnerId == request.auth.uid &&
+            existing().status != 'Closed' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isAdmin() && isValidId(inquiryId);
+    }
+
+    match /appointments/{appointmentId} {
+      allow get: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.businessOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.businessOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(appointmentId) &&
+        isValidAppointment(incoming(), appointmentId) &&
+        incoming().customerId == request.auth.uid &&
+        incoming().status == 'Requested' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/businesses/$(incoming().businessId)) &&
+        get(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.status == 'approved' &&
+        get(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.ownerId == incoming().businessOwnerId;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(appointmentId) &&
+        isValidAppointment(incoming(), appointmentId) &&
+        incoming().id == existing().id &&
+        incoming().businessId == existing().businessId &&
+        incoming().businessOwnerId == existing().businessOwnerId &&
+        incoming().customerId == existing().customerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().businessOwnerId == request.auth.uid &&
+            existing().status in ['Requested', 'Confirmed'] &&
+            incoming().status in ['Confirmed', 'Cancelled', 'Completed'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          ) ||
+          (
+            existing().customerId == request.auth.uid &&
+            existing().status in ['Requested', 'Confirmed'] &&
+            incoming().status == 'Cancelled' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isAdmin() && isValidId(appointmentId);
+    }
+
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && (
+        resource.data.reporterId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.reporterId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(reportId) &&
+        isValidReport(incoming(), reportId) &&
+        incoming().reporterId == request.auth.uid &&
+        incoming().status == 'Open' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        !incoming().keys().hasAny(['adminNotes']);
+
+      allow update: if isAdmin() &&
+        isValidId(reportId) &&
+        isValidReport(incoming(), reportId) &&
+        incoming().id == existing().id &&
+        incoming().reporterId == existing().reporterId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+
+      allow delete: if isAdmin() && isValidId(reportId);
+    }
+
+    match /events/{eventId} {
+      allow get: if resource.data.status == 'approved' ||
+        (isSignedIn() && (resource.data.organizerId == request.auth.uid || isAdmin()));
+      allow list: if resource.data.status == 'approved' ||
+        (isSignedIn() && (resource.data.organizerId == request.auth.uid || isAdmin()));
+
+      allow create: if isVerifiedUser() &&
+        isValidId(eventId) &&
+        isValidEvent(incoming(), eventId) &&
+        incoming().organizerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (isAdmin() || incoming().status == 'pending');
+
+      allow update: if isVerifiedUser() &&
+        isValidId(eventId) &&
+        isValidEvent(incoming(), eventId) &&
+        incoming().id == existing().id &&
+        incoming().organizerId == existing().organizerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().organizerId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title', 'category', 'area', 'venue', 'eventDate', 'eventTime', 'description', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isAdmin() && isValidId(eventId);
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if resource.data.audience == 'public' || isAdmin();
+      allow list: if resource.data.audience == 'public';
+      allow create, update: if isAdmin() &&
+        isValidId(notificationId) &&
+        isValidPublicNotification(incoming(), notificationId);
+      allow delete: if isAdmin() && isValidId(notificationId);
+    }
+  }
+}
